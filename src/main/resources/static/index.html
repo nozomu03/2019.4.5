@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<script
+        src="http://code.jquery.com/jquery-3.3.1.js"
+        integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+        crossorigin="anonymous"></script>
+<body>
+    <h3>Return</h3>
+    <div>
+        <input id="inputFiled">
+        <button onclick="Clicked()">확인</button>
+    </div>
+    <div id="result"></div>
+    <h3>User</h3>
+    <hr>
+    <div>
+        userName: <input id="userFiled">
+        Email: <input id="email">
+        <button onclick="ClickedU()">확인</button>
+    </div>
+    <div id="result2"></div>
+</body>
+<script>
+    async function ShowingUser(){
+        let response = await $.get('/user');
+        try{
+            for(let i =0; i<response.length; i++){
+                let user = response[i];
+                $("#result2").append(
+                    `
+                        <div id="user${user.id}" style="display: flex; border-bottom: 1px solid silver;">
+                            <div style="width: 150px;">${user.userName}</div>
+                            <div style="width: 350px; overflow: auto;">${user.email}</div>
+                            <button onclick="ModifyU(this, ${user.id})">수정</button>
+                            <button style="margin-left: 5px" onclick="DeleteButtonU(this, ${user.id})">삭제</button>
+                                <div>
+                                    <form id="fileform" enctype="multipart/form-data" onsubmit="return false;" method="post">
+                                        <input type="file" id="file${user.id}">
+                                        <button onclick="uploadFile(${user.id})">업로드</button>
+                                    </form>
+                                </div>
+                        </div>
+                    `
+                );
+            }
+        }catch (e) {
+            $("#result2").html(JSON.stringify(e));
+        }
+    }
+
+    function uploadFile(id){
+        try {
+            console.log("a");
+            let formData = new FormData();
+            formData.append("srcFile", $("#file"+id)[0].files[0]);
+            let response = $.ajax({
+                method: "POST",
+                enctype: 'multipart/form-data',
+                url: "/attachment",
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(response){
+                    console.log(response.storedPath);
+                    let line = $(`#user${id}`);
+                    let obj = new Object();
+                    obj.location = response.storedPath;
+                    obj.fileN = response.originalName;
+                    obj = JSON.stringify(obj);
+                    $.ajax({
+                        url : "/user/" + id,
+                        type : "PUT",
+                        contentType: 'application/json',
+                        data  : obj
+                    })
+                }
+            })
+
+        }catch(ex){
+            console.log(ex.toString());
+        }
+    }
+
+    async function Showing() {
+        let response = await $.get('/comment');
+        try {
+            for(let i =0; i<response.length; i++){
+                let comment = response[i];
+                $("#result").append(
+                    `
+                        <div id="line${comment.id}" style="display: flex; border-bottom: 1px solid silver;">
+                            <div style="width: 150px;">${comment.userName}</div>
+                            <div style="width: 350px; overflow: auto;">${comment.content}</div>
+                            <button onclick="Modify(this, ${comment.id})">수정</button>
+                            <button style="margin-left: 5px" onclick="DeleteButton(this, ${comment.id})">삭제</button>
+                        </div>
+                    `
+                );
+            }
+        }catch(ex){
+            $("#result").html(JSON.stringify(ex));
+        }
+    }
+
+    function ClickedU() {
+        let obj = new Object();
+        obj.userName = $("#userFiled").val();
+        obj.email = $("#email").val();
+        obj = JSON.stringify(obj);
+        let request = $.ajax({
+            type: "POST",
+            url: "/user",
+            async: "true",
+            contentType: 'application/json',
+            data: obj
+        });
+    }
+    
+    function Clicked(){
+        console.log("진입");
+        let obj = new Object();
+        obj.userId = 1;
+        obj.content = $("#inputFiled").val();
+        obj = JSON.stringify(obj);
+        let request = $.ajax({
+            type: "POST",
+            url: "/comment",
+            async: "true",
+            contentType: 'application/json',
+            data: obj
+        });
+    }
+
+    let content;
+    function DeleteButton(button, id){
+        try {
+            console.log($(button).text());
+            if($(button).text() === "삭제") {
+                if (confirm("정말 지우시겟습니까?") === true) {
+                    let response = $.ajax({
+                        url: "/comment/" + id,
+                        type: "DELETE",
+                    })
+                    if (response) {
+                        $(`#line${id}`).remove();
+                    } else
+                        alert("삭제 실패");
+                }
+            }else if($(button).text() === "취소"){
+                console.log(content.toString());
+                line.find('div:nth-child(2)').html(content);
+                $(button).text('삭제');
+                $(button).prev().text('수정');
+            }
+        }catch(ex){
+            console.log(JSON.stringify(ex));
+        }
+    }
+
+    function DeleteButtonU(button, id){
+        try {
+            console.log($(button).text());
+            if($(button).text() === "삭제") {
+                if (confirm("정말 지우시겟습니까?") === true) {
+                    let response = $.ajax({
+                        url: "/user/" + id,
+                        type: "DELETE",
+                    })
+                    if (response) {
+                        $(`#user${id}`).remove();
+                    } else
+                        alert("삭제 실패");
+                }
+            }else if($(button).text() === "취소"){
+                line.find('div:nth-child(1)').html(content);
+                line.find('div:nth-child(2)').html(content2);
+                $(button).text('삭제');
+                $(button).prev().text('수정');
+            }
+        }catch(ex){
+            console.log(JSON.stringify(ex));
+        }
+    }
+
+    async function Modify(button, id) {
+        let line = $(`#line${id}`);
+        if($(button).text() === "수정") {
+            content = line.find("div:nth-child(2)").html();
+            let input = `<input value="${content}">`;
+            line.find("div:nth-child(2)").html(input);
+            line.find('input').focus();
+            $(button).text("확인");
+            $(button).next().text("취소");
+        }else if($(button).text() === '확인'){
+            let obj = new Object();
+            obj.userId = id;
+            obj.content = line.find("input").val();
+            obj = JSON.stringify(obj);
+            let response = $.ajax({
+                url : "/comment/" + id,
+                type : "PUT",
+                contentType: 'application/json',
+                data  : obj
+            })
+            line.find('div:nth-child(2)').html(content);
+            $(button).text('수정');
+            $(button).next().text('삭제');
+        }
+    }
+    let content2
+    async function ModifyU(button, id) {
+        let line = $(`#user${id}`);
+        if($(button).text() === "수정") {
+            content = line.find("div:nth-child(2)").html();
+            content2 = line.find("div:nth-child(1)").html();
+            let input1 = `<input value="${content}">`;
+            let input = `<input value="${content2}">`;
+            line.find('div:nth-child(1)').html(input);
+            line.find("div:nth-child(2)").html(input1);
+            line.find('input').focus();
+            $(button).text("확인");
+            $(button).next().text("취소");
+        }else if($(button).text() === '확인'){
+            let obj = new Object();
+            obj.userName = line.find("input").val();
+            obj.email = line.find("input1").val();
+            obj = JSON.stringify(obj);
+            let response = $.ajax({
+                url : "/user/" + id,
+                type : "PUT",
+                contentType: 'application/json',
+                data  : obj
+            })
+            line.find('div:nth-child(1)').html(content2);
+            line.find('div:nth-child(2)').html(content);
+            $(button).text('수정');
+            $(button).next().text('삭제');
+        }
+    }
+    ShowingUser();
+    Showing();
+</script>
+</html>
